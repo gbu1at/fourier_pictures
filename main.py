@@ -1,81 +1,97 @@
-import numpy as np
 import pygame
 import sys
 import math
+import numpy as np
+from setting import *
+from fourier import *
+from functions import *
+
 
 
 pygame.init()
 
 
-WIDTH, HEIGHT = 600, 600
-GRID_SIZE = 5
-ROWS, COLS = HEIGHT // GRID_SIZE, WIDTH // GRID_SIZE
-WHITE = (255, 255, 255)
-BLACK = (0, 0, 0)
-RED = (255, 0, 0)
-
-
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption()
 
 
-grid = [[0 for _ in range(COLS)] for _ in range(ROWS)]
 
-def draw_grid():
-    for row in range(ROWS):
-        for col in range(COLS):
-            color = RED if grid[row][col] == 1 else WHITE
-            pygame.draw.rect(
-                screen,
-                color,
-                (col * GRID_SIZE, row * GRID_SIZE, GRID_SIZE, GRID_SIZE),
-            )
+def get_cr(p):
+    x = int(p.real * WIDTH / 2 / XMAX) + WIDTH // 2
+    y = int(p.imag * HEIGHT / 2 / YMAX) + HEIGHT // 2
 
-class Function:
-    def __init__(self, func):
-        self.func = func
-
-    def __mul__(self, other):
-        return Function(self.func * other.func)
-
-    def integrate(self, diap=(0, 1), size=100):
-        s, f = diap
-
-        X = np.linspace(s, f, size)
-        dx = (f - s) / size
-
-        return sum([self.func(x) for x in X]) * dx 
+    return x, y
 
 
-class FourierComposition:
-    def __init__(self, N = 51):
-        assert N % 2 == 1
-        self.N = N
-        self.coef = [0j] * self.N
-
-    def fit(self, f: Function):
-        self.f = f
-
-        for i in range(-self.N // 2, self.N // 2 + 1):
-            self.coef[i] = (self.f * Function(lambda t : math.e ** (1j * -i * t))).integarte()
+save_points = []
 
 
 def main():
     running = True
+
+    t = 0
+    step = 10000
+
+    _, N, file_name = sys.argv
+    N = int(N)
+
+    func = get_function(f"func/{file_name}")
+    f = FourierComposition(N + (N + 1) % 2)
+    f.fit(func)
+    idx_coeff = list(enumerate(f.coef))
+    sorted_idx_coeff = list(reversed(sorted(idx_coeff, key=lambda x: abs(x[1]))))
+
+
+    clock = pygame.time.Clock()
+    FPS = 200
+
+    screen.fill(BLACK)
+
     while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
-            # elif event.type == pygame.MOUSEBUTTONDOWN:
-            #     x, y = pygame.mouse.get_pos()
-            #     col = x // GRID_SIZE
-            #     row = y // GRID_SIZE
-            #     grid[row][col] = 1 - grid[row][col]
 
-        screen.fill(WHITE)
-        start()
-        draw_grid()
+        screen.fill(BLACK)
+
+        for x, y in save_points:
+            pygame.draw.rect(screen, WHITE, (x, y, 1, 1))
+
+        if t < 1:
+            p = 0
+            for x in sorted_idx_coeff:
+                next_p = f.coef[x[0]] * math.e ** (1j * (x[0] - f.N // 2) * t) / math.sqrt(2 * math.pi) + p
+                xp, yp = get_cr(p)
+
+                xnp, ynp = get_cr(next_p)
+
+                pygame.draw.circle(screen, 
+                                    color=WHITE,
+                                    center=(xp, yp),
+                                    radius=int(math.sqrt((xnp - xp) ** 2 + (ynp - yp) ** 2)),
+                                    width=1
+                                    )
+
+                pygame.draw.line(
+                    surface=screen,
+                    color=WHITE,
+                    start_pos=(xp, yp),
+                    end_pos=(xnp, ynp),
+                    width=1
+                )
+                p = next_p
+
+            x, y = get_cr(p)
+
+            if x >= 0 and x < WIDTH and y >= 0 and y < HEIGHT:
+                pygame.draw.rect(screen, WHITE, (x, y, 1, 1))
+                save_points.append((x, y))
+
+
+            t += 1 / step
+
+
         pygame.display.flip()
+        clock.tick(FPS)
 
     pygame.quit()
     sys.exit()

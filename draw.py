@@ -1,62 +1,59 @@
 import pygame
 import sys
+from setting import *
 
 
 pygame.init()
 
 
-WIDTH, HEIGHT = 800, 600
-GRID_SIZE = 5
-ROWS, COLS = HEIGHT // GRID_SIZE, WIDTH // GRID_SIZE
-
-
-WHITE = (255, 255, 255)
-BLACK = (0, 0, 0)
-RED = (255, 0, 0)
-
-
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Закрашивание клеток (Q + мышь)")
 
 
-grid = [[0 for _ in range(COLS)] for _ in range(ROWS)]
 
-def draw_grid():
-    """Отрисовка сетки и закрашенных клеток"""
-    screen.fill(WHITE)
-    for row in range(ROWS):
-        for col in range(COLS):
-            if grid[row][col] == 1:
-                pygame.draw.rect(
-                    screen,
-                    RED,
-                    (col * GRID_SIZE, row * GRID_SIZE, GRID_SIZE, GRID_SIZE)
-                )
+def save_grid():
+    with open(f"func/{file_name}", "w") as f:
+        for coord in grid:
+            f.write(f"{coord[0]} {coord[1]}\n")
+    pygame.image.save(screen, f"func/{file_name}.png")
+
+
+grid = []
+
+_, file_name = sys.argv
 
 def main():
     running = True
-    q_pressed = False 
-
+    drawing = False 
+    i = 0
     while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_q:
-                    q_pressed = True
-            elif event.type == pygame.KEYUP:
-                if event.key == pygame.K_q:
-                    q_pressed = False
+                    drawing = True
+                if event.key == pygame.K_w:
+                    drawing = False
+                if event.key == pygame.K_s:
+                    save_grid()
+                    running = False
 
 
-        if q_pressed:
+        if drawing:
+            i += 1
             x, y = pygame.mouse.get_pos()
-            col = x // GRID_SIZE
-            row = y // GRID_SIZE
-            if 0 <= row < ROWS and 0 <= col < COLS:
-                grid[row][col] = 1
+            col = x
+            row = y
 
-        draw_grid()
+            if 0 <= row < HEIGHT and 0 <= col < WIDTH:
+                pygame.draw.rect(
+                    screen,
+                    WHITE,
+                    (col, row, 1, 1)
+                )
+                if [col, row] not in grid:
+                    grid.append([col, row])
+
         pygame.display.flip()
 
     pygame.quit()
